@@ -6,17 +6,20 @@
     <title>Análise Mega-Sena - Sugestões Inteligentes</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; background: #f8f8f8; }
-        h1, h2 { text-align: center; }
-        .sugestoes { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); margin: 20px 0; }
-        .jogo { font-size: 24px; font-weight: bold; margin: 15px 0; text-align: center; }
-        .numeros { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; background: #a0d8ef; color: #333; }
+        h1, h2, h3 { text-align: center; }
+        .sugestoes, .personalizada, .aleatorias, .probabilidades, .tabela { background: #d0d0d0; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); margin: 30px 0; }
+        .jogo { font-size: 24px; font-weight: bold; margin: 20px 0; text-align: center; }
+        .numeros { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin: 15px 0; }
         .numero { background: #0066cc; color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-        .gerar { text-align: center; margin: 30px 0; }
-        input, button { padding: 10px; font-size: 16px; margin: 10px; }
+        input, button { padding: 10px; font-size: 16px; margin: 10px 5px; }
         button { background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; }
         button:hover { background: #0055aa; }
-        .loading { text-align: center; color: #666; }
+        .loading { text-align: center; color: #666; font-size: 18px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+        th { background: #e0e0e0; }
+        .probabilidades { font-size: 20px; text-align: center; }
     </style>
 </head>
 <body>
@@ -27,7 +30,7 @@
 
     <div id="content" style="display:none;">
         <div class="sugestoes">
-            <h2>Sugestões Prontas</h2>
+            <h2>Sugestões Inteligentes (baseadas na análise da planilha)</h2>
             
             <h3>Apostas de 6 dezenas</h3>
             <div class="jogo">Jogo 1: <div class="numeros" id="jogo6-1"></div></div>
@@ -36,22 +39,70 @@
             <h3>Apostas de 7 dezenas</h3>
             <div class="jogo">Jogo 1: <div class="numeros" id="jogo7-1"></div></div>
             <div class="jogo">Jogo 2: <div class="numeros" id="jogo7-2"></div></div>
+
+            <div class="probabilidades" id="probInicial">
+                <h3>Probabilidade com essas 4 apostas sugeridas</h3>
+                <p>Quadra: <strong>1 em <span id="initQuadra"></span></strong></p>
+                <p>Quina: <strong>1 em <span id="initQuina"></span></strong></p>
+                <p>Sena: <strong>1 em <span id="initSena"></span></strong></p>
+            </div>
         </div>
 
-        <div class="gerar">
-            <h2>Gerar nova combinação personalizada</h2>
-            <label>Quantas dezenas deseja? (ex: 6, 7, 8, 10, 15...)</label><br>
-            <input type="number" id="quantidade" min="6" max="20" value="7">
-            <br>
-            <button onclick="gerarNova()">Gerar Nova Aposta</button>
-            <div id="resultado-personalizado" style="margin-top:20px;"></div>
+        <div class="personalizada">
+            <h2>Gerar combinação personalizada (determinística - baseada nos números mais quentes)</h2>
+            <label>Quantas dezenas deseja na aposta? (6 a 20)</label><br>
+            <input type="number" id="qtdPersonalizada" min="6" max="20" value="7"><br>
+            <button onclick="gerarPersonalizada()">Gerar Aposta Personalizada</button>
+            <div id="apostaPersonalizada"></div>
+        </div>
+
+        <div class="aleatorias">
+            <h2>Gerar apostas aleatórias adicionais</h2>
+            <label>Quantas apostas aleatórias quer gerar?</label><br>
+            <input type="number" id="qtdAleatorias" min="0" value="0"><br>
+            <label>Quantas dezenas em cada uma? (separado por vírgula, ex: 8,7,7)</label><br>
+            <input type="text" id="dezenasAleatorias" placeholder="7,7,8" value=""><br>
+            <button onclick="gerarAleatorias()">Gerar Apostas Aleatórias</button>
+            <div id="apostasAleatorias"></div>
+        </div>
+
+        <div class="probabilidades" id="probabilidades" style="display:none;">
+            <h2>Sua probabilidade de acerto com o conjunto gerado (personalizada + aleatórias)</h2>
+            <p>Quadra: <strong>1 em <span id="probQuadra"></span></strong></p>
+            <p>Quina: <strong>1 em <span id="probQuina"></span></strong></p>
+            <p>Sena: <strong>1 em <span id="probSena"></span></strong></p>
+        </div>
+
+        <div class="tabela">
+            <h2>Probabilidades por quantidade de dezenas (uma única cartela)</h2>
+            <table>
+                <tr><th>Dezenas</th><th>Quadra (1 em)</th><th>Quina (1 em)</th><th>Sena (1 em)</th></tr>
+                <tr><td>6</td><td>2.332</td><td>154.518</td><td>50.063.860</td></tr>
+                <tr><td>7</td><td>1.038</td><td>44.981</td><td>7.151.980</td></tr>
+                <tr><td>8</td><td>539</td><td>17.192</td><td>1.787.995</td></tr>
+                <tr><td>9</td><td>311</td><td>7.790</td><td>595.998</td></tr>
+                <tr><td>10</td><td>194</td><td>3.973</td><td>238.399</td></tr>
+                <tr><td>11</td><td>129</td><td>2.211</td><td>108.363</td></tr>
+                <tr><td>12</td><td>89</td><td>1.316</td><td>54.181</td></tr>
+                <tr><td>13</td><td>64</td><td>827</td><td>29.174</td></tr>
+                <tr><td>14</td><td>48</td><td>543</td><td>16.671</td></tr>
+                <tr><td>15</td><td>37</td><td>370</td><td>10.003</td></tr>
+            </table>
         </div>
     </div>
 
     <script>
         const urlExcel = 'https://raw.githubusercontent.com/psicspsix/LerPDFemLinksFixos/main/PDFs/Sorteios%20at%C3%A9%20a%20presente%20data.xlsx';
+        let numerosQuentes = [];
 
-        let numerosQuentes = []; // Top 30 números mais quentes (ponderados)
+        const sugestoesFixas = [
+            [5, 8, 30, 31, 37, 45],
+            [4, 10, 17, 27, 35, 53],
+            [5, 8, 30, 31, 37, 45, 53],
+            [4, 10, 17, 27, 33, 35, 60]
+        ];
+
+        let geradasApostas = []; // Só personalizada + aleatórias
 
         async function carregarDados() {
             try {
@@ -59,57 +110,46 @@
                 const arrayBuffer = await response.arrayBuffer();
                 const workbook = XLSX.read(arrayBuffer, { type: 'array' });
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const data = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 7 }); // Começa na linha 7 (depois do cabeçalho)
+                const data = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 7 });
 
                 const sorteios = [];
                 const dataCorte = new Date('2015-01-01');
-                let indiceRecente = 0;
+                let peso = 0;
 
                 for (let row of data) {
                     if (!row || row.length < 8) continue;
                     const dataStr = row[1];
                     if (!dataStr) continue;
-                    const dataParts = dataStr.toString().split('/');
-                    const dataSorteio = new Date(`${dataParts[2]}-${dataParts[1]}-${dataParts[0]}`);
-                    if (dataSorteio >= dataCorte) {
-                        const bolas = [row[2], row[3], row[4], row[5], row[6], row[7]].map(n => parseInt(n)).filter(n => n >= 1 && n <= 60);
-                        if (bolas.length === 6) {
-                            sorteios.push({ bolas, peso: ++indiceRecente });
-                        }
+                    const parts = dataStr.toString().split('/');
+                    if (parts.length !== 3) continue;
+                    const d = new Date(`${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`);
+                    if (isNaN(d) || d < dataCorte) continue;
+
+                    const bolas = [row[2], row[3], row[4], row[5], row[6], row[7]].map(Number).filter(n => n >= 1 && n <= 60);
+                    if (bolas.length === 6) {
+                        peso++;
+                        sorteios.push({peso, bolas});
                     }
                 }
 
-                // Calcular frequência ponderada
                 const freq = Array(61).fill(0);
-                sorteios.forEach(s => {
-                    s.bolas.forEach(num => {
-                        freq[num] += s.peso;
-                    });
-                });
+                sorteios.forEach(s => s.bolas.forEach(n => freq[n] += s.peso));
 
-                // Top 30 quentes
-                const indices = Array.from({length: 60}, (_, i) => i+1);
-                indices.sort((a,b) => freq[b] - freq[a]);
-                numerosQuentes = indices.slice(0, 30);
+                const indices = Array.from({length: 60}, (_, i) => i + 1);
+                indices.sort((a, b) => freq[b] - freq[a]);
+                numerosQuentes = indices.slice(0, 40);
 
-                // Sugestões fixas (combinando top quentes com equilíbrio)
-                const sugestoes = {
-                    '6-1': [4, 8, 27, 30, 33, 37],
-                    '6-2': [5, 10, 17, 35, 43, 53],
-                    '7-1': [4, 8, 27, 30, 33, 37, 53],
-                    '7-2': [5, 10, 17, 35, 43, 46, 60]
-                };
+                // Exibir sugestões fixas
+                exibirNumeros(document.getElementById('jogo6-1'), sugestoesFixas[0]);
+                exibirNumeros(document.getElementById('jogo6-2'), sugestoesFixas[1]);
+                exibirNumeros(document.getElementById('jogo7-1'), sugestoesFixas[2]);
+                exibirNumeros(document.getElementById('jogo7-2'), sugestoesFixas[3]);
 
-                // Exibir sugestões
-                Object.keys(sugestoes).forEach(id => {
-                    const div = document.getElementById('jogo' + id);
-                    if (div) exibirNumeros(div, sugestoes[id]);
-                });
-
+                calcularProbabilidades();
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('content').style.display = 'block';
             } catch (err) {
-                document.getElementById('loading').innerHTML = 'Erro ao carregar a planilha. Verifique o link ou tente novamente mais tarde.';
+                document.getElementById('loading').innerHTML = 'Erro ao carregar a planilha. Verifique a conexão.';
                 console.error(err);
             }
         }
@@ -124,31 +164,102 @@
             });
         }
 
-        function gerarNova() {
-            const qtd = parseInt(document.getElementById('quantidade').value);
-            if (isNaN(qtd) || qtd < 6 || qtd > 20) {
-                alert('Escolha entre 6 e 20 dezenas.');
-                return;
-            }
+        function gerarPersonalizada() {
+            const qtd = parseInt(document.getElementById('qtdPersonalizada').value) || 7;
+            if (qtd < 6 || qtd > 20) return alert('Escolha entre 6 e 20 dezenas.');
 
-            // Mistura top 20 quentes + alguns aleatórios dos top 30 para diversidade
-            const top20 = numerosQuentes.slice(0, 20);
-            const extras = numerosQuentes.slice(20, 30);
-            const selecao = top20.slice(0, Math.min(15, qtd));
-            while (selecao.length < qtd) {
-                const aleatorio = extras[Math.floor(Math.random() * extras.length)];
-                if (!selecao.includes(aleatorio)) selecao.push(aleatorio);
-            }
+            const baixos = numerosQuentes.filter(n => n <= 30).slice(0, 20);
+            const altos = numerosQuentes.filter(n => n > 30).slice(0, 20);
+            const metade = Math.ceil(qtd / 2);
+            let aposta = [...baixos.slice(0, metade), ...altos.slice(0, qtd - metade)];
+            aposta = aposta.slice(0, qtd).sort((a,b) => a-b);
 
-            // Embaralhar um pouco para evitar ordem fixa
-            for (let i = selecao.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [selecao[i], selecao[j]] = [selecao[j], selecao[i]];
-            }
+            const div = document.getElementById('apostaPersonalizada');
+            div.innerHTML = `<h3>Aposta personalizada determinística (${qtd} dezenas):</h3><div class="numeros"></div>`;
+            exibirNumeros(div.querySelector('.numeros'), aposta);
 
-            const div = document.getElementById('resultado-personalizado');
-            div.innerHTML = `<h3>Sua aposta com ${qtd} dezenas:</h3><div class="numeros"></div>`;
-            exibirNumeros(div.querySelector('.numeros'), selecao);
+            geradasApostas = [aposta]; // Reseta e adiciona apenas personalizada
+            document.getElementById('apostasAleatorias').innerHTML = ''; // Limpa aleatórias
+            calcularProbabilidades();
+        }
+
+        function gerarAleatorias() {
+            const qtdApostas = parseInt(document.getElementById('qtdAleatorias').value) || 0;
+            if (qtdApostas <= 0) return;
+
+            const strDezenas = document.getElementById('dezenasAleatorias').value.trim();
+            const dezenasLista = strDezenas.split(',').map(n => parseInt(n.trim())).filter(n => n >= 6 && n <= 20);
+            if (dezenasLista.length !== qtdApostas) return alert(`Forneça exatamente ${qtdApostas} valores separados por vírgula.`);
+
+            const geradas = [];
+            const div = document.getElementById('apostasAleatorias');
+            div.innerHTML = '<h3>Apostas aleatórias geradas:</h3>';
+
+            dezenasLista.forEach((qtd, i) => {
+                let pool = [...numerosQuentes];
+                let aposta = [];
+                while (aposta.length < qtd && pool.length > 0) {
+                    const idx = Math.floor(Math.random() * pool.length);
+                    aposta.push(pool.splice(idx, 1)[0]);
+                }
+                while (aposta.length < qtd) {
+                    const num = Math.floor(Math.random() * 60) + 1;
+                    if (!aposta.includes(num)) aposta.push(num);
+                }
+                aposta.sort((a,b) => a-b);
+                geradas.push(aposta);
+
+                const jogoDiv = document.createElement('div');
+                jogoDiv.className = 'jogo';
+                jogoDiv.innerHTML = `Aposta ${i+1} (${qtd} dezenas): `;
+                const numsDiv = document.createElement('div');
+                numsDiv.className = 'numeros';
+                exibirNumeros(numsDiv, aposta);
+                jogoDiv.appendChild(numsDiv);
+                div.appendChild(jogoDiv);
+            });
+
+            // Adiciona às geradas (incluindo personalizada se existir)
+            geradasApostas = (geradasApostas[0] && geradasApostas[0].length > 0 ? geradasApostas : []).concat(geradas);
+            calcularProbabilidades();
+        }
+
+        function comb(n, k) {
+            if (k < 0 || k > n) return 0;
+            let res = 1;
+            for (let i = 0; i < k; ++i) res = res * (n - i) / (i + 1);
+            return Math.round(res);
+        }
+
+        function calcularProbabilidades() {
+            const total = 50063860;
+
+            // Prob inicial (só fixas)
+            let quadraFixas = 0, quinaFixas = 0, senaFixas = 0;
+            sugestoesFixas.forEach(aposta => {
+                const n = aposta.length;
+                senaFixas += comb(n, 6);
+                quinaFixas += comb(n, 5) * comb(60 - n, 1);
+                quadraFixas += comb(n, 4) * comb(60 - n, 2);
+            });
+            const format = x => x > 0 ? Math.round(total / x).toLocaleString('pt-BR') : '—';
+            document.getElementById('initQuadra').textContent = format(quadraFixas);
+            document.getElementById('initQuina').textContent = format(quinaFixas);
+            document.getElementById('initSena').textContent = format(senaFixas);
+
+            // Prob total geradas (personalizada + aleatórias)
+            let quadraGeradas = 0, quinaGeradas = 0, senaGeradas = 0;
+            geradasApostas.forEach(aposta => {
+                const n = aposta.length;
+                senaGeradas += comb(n, 6);
+                quinaGeradas += comb(n, 5) * comb(60 - n, 1);
+                quadraGeradas += comb(n, 4) * comb(60 - n, 2);
+            });
+            document.getElementById('probQuadra').textContent = format(quadraGeradas);
+            document.getElementById('probQuina').textContent = format(quinaGeradas);
+            document.getElementById('probSena').textContent = format(senaGeradas);
+
+            document.getElementById('probabilidades').style.display = geradasApostas.length > 0 ? 'block' : 'none';
         }
 
         carregarDados();
